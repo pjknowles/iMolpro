@@ -43,7 +43,8 @@ jobs:
       - name: Build
         run: |
           curl -O https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86_64.exe
-          start /wait "" Miniconda3-latest-Windows-x86_64.exe /InstallationType=JustMe /RegisterPython=0 /S /D=%UserProfile%\Miniconda3 
+#          start /wait "" Miniconda3-latest-Windows-x86_64.exe /InstallationType=JustMe /RegisterPython=0 /S /D=%UserProfile%\Miniconda3
+          .\Miniconda3-latest-Windows-x86_64.exe /InstallationType=JustMe /RegisterPython=0 /S /D=%UserProfile%\Miniconda3 
           .\build.ps1
       - name: Release
         uses: softprops/action-gh-release@v1
