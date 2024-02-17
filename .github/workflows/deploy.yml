@@ -47,8 +47,9 @@ jobs:
           conda config --add channels conda-forge
           conda info
           conda config --show channels
-          conda create -n iMolpro -y --file=requirements.txt m2-base nsis python=3.12
+          conda create -n iMolpro -y --file=windows_requirements.txt
           conda activate iMolpro
+          conda list
           .\build.ps1
           conda list
       - name: Release
