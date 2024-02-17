@@ -43,11 +43,7 @@ jobs:
       - name: Build
         run: |
           conda update -y --all
-          conda config --set channel_priority strict
-          conda config --add channels conda-forge
-          conda info
-          conda config --show channels
-          conda env create -n iMolpro -y -f windows_requirements.yaml
+          conda env create -n iMolpro -y -f windows_requirements.yaml -c conda-forge
           conda activate iMolpro
           conda list
           .\build.ps1
