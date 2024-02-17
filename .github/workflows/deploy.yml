@@ -47,7 +47,7 @@ jobs:
           conda config --add channels conda-forge
           conda info
           conda config --show channels
-          conda create -n iMolpro -y --file=windows_requirements.txt
+          conda env create -n iMolpro -y -f windows_requirements.yaml
           conda activate iMolpro
           conda list
           .\build.ps1
