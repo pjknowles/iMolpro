@@ -42,8 +42,11 @@ jobs:
       - uses: s-weigand/setup-conda@v1
       - name: Build
         run: |
-          curl -O https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86_64.exe
-          .\Miniconda3-latest-Windows-x86_64.exe /InstallationType=JustMe /RegisterPython=0 /S /D=%UserProfile%\Miniconda3 
+          conda update -y --all
+          conda config --set channel_priority strict
+          conda config --add channels conda-forge
+          conda info
+          conda config --show channels
           .\build.ps1
       - name: Release
         uses: softprops/action-gh-release@v1
