@@ -42,7 +42,8 @@ jobs:
       - uses: s-weigand/setup-conda@v1
       - name: Build
         run: |
-          conda env create -n iMolpro -y -f windows_requirements.yaml -c conda-forge
+          conda config --add channels conda-forge
+          conda env create -n iMolpro -y -f windows_requirements.yaml
           conda activate iMolpro
           conda list
           echo before entering build.ps1
