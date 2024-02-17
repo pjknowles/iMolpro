@@ -48,6 +48,7 @@ jobs:
           conda info
           conda config --show channels
           .\build.ps1
+          conda list
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
