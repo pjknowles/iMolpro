@@ -45,7 +45,9 @@ jobs:
           conda env create -n iMolpro -y -f windows_requirements.yaml -c conda-forge
           conda activate iMolpro
           conda list
+          echo before entering build.ps1
           .\build.ps1
+          echo after entering build.ps1
           conda list
       - name: Release
         uses: softprops/action-gh-release@v1
