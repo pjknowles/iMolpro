@@ -44,6 +44,7 @@ jobs:
           activate-environment: iMolpro
           auto-activate-base: false
       - name: Build
+        shell: cmd /C call {0}
         run: |
           conda info
           conda list
