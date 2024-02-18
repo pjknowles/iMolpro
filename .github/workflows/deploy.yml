@@ -48,6 +48,7 @@ jobs:
           echo "after env create"
           conda env list
           conda activate iMolpro
+          activate iMolpro
           conda info
           conda list
           echo before entering build.ps1
