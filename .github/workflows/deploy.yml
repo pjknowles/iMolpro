@@ -41,7 +41,6 @@ jobs:
       - uses: conda-incubator/setup-miniconda@v3
         with:
           environment-file: windows_requirements.yaml
-      - uses: s-weigand/setup-conda@v1
       - name: Build
         run: |
           conda info
