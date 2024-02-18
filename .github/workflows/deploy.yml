@@ -41,6 +41,8 @@ jobs:
       - uses: conda-incubator/setup-miniconda@v3
         with:
           environment-file: windows_requirements.yaml
+          activate-environment: iMolpro
+          auto-activate-base: false
       - name: Build
         run: |
           conda info
