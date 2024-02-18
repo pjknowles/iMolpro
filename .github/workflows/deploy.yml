@@ -42,9 +42,11 @@ jobs:
       - uses: s-weigand/setup-conda@v1
       - name: Build
         run: |
+          conda init powershell
           conda config --add channels conda-forge
           conda env create -n iMolpro -y -f windows_requirements.yaml
           echo "after env create"
+          conda env list
           conda activate iMolpro
           conda info
           conda list
