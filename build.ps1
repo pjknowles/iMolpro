@@ -1,4 +1,4 @@
-#cmd.exe /c conda install -c conda-forge -y --file=requirements.txt m2-base nsis
+cmd.exe /c conda install -c conda-forge -y --file=requirements.txt m2-base nsis
 
 
 $versionfile = ( $env:TMP, "\VERSION") -join ""
@@ -12,7 +12,6 @@ If (Test-Path -path dist)
     rm dist -r -fo
 }
 $cp = $env:CONDA_PREFIX
-#pyinstaller --noconfirm --noconsole `
 pyinstaller --noconfirm `
   --add-data=JSmol.min.js:. `
     --add-data=j2s:./j2s `
