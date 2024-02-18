@@ -37,16 +37,13 @@ jobs:
     name:  Deploy on Windows
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          environment-file: windows_requirements.yaml
       - uses: s-weigand/setup-conda@v1
       - name: Build
         run: |
-          conda init
-          conda config --add channels conda-forge
-          conda env update -f windows_requirements.yaml
-          echo "after env update"
-          conda env list
           conda info
           conda list
           echo before entering build.ps1
