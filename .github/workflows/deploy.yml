@@ -43,15 +43,15 @@ jobs:
           environment-file: windows_requirements.yaml
           activate-environment: iMolpro
           auto-activate-base: false
-      - name: Build
+      - name: Info
         shell: cmd /C call {0}
-        run: |
-          conda info
-          conda list
-          echo before entering build.ps1
-          .\build.ps1
-          echo after entering build.ps1
-          conda list
+        run: conda info
+      - name: List
+        shell: cmd /C call {0}
+        run: conda list
+      - name: Build
+        shell: pwsh
+        run: .\build.ps1
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
