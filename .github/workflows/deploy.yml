@@ -49,6 +49,7 @@ jobs:
           conda env list
           conda activate iMolpro
           activate iMolpro
+          conda activate C:\Miniconda\envs\iMolpro
           conda info
           conda list
           echo before entering build.ps1
