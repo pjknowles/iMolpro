@@ -44,7 +44,9 @@ jobs:
         run: |
           conda config --add channels conda-forge
           conda env create -n iMolpro -y -f windows_requirements.yaml
+          echo "after env create"
           conda activate iMolpro
+          conda info
           conda list
           echo before entering build.ps1
           .\build.ps1
