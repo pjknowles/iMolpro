@@ -14,7 +14,7 @@ print('after settings=, home_=', home_, settings)
 
 
 def settings_edit(parent=None):
-    box = OptionsDialog(dict(settings), ['CHEMSPIDER_API_KEY', 'mo_translucent', 'expertise'], title='Settings',
+    box = OptionsDialog({}, ['CHEMSPIDER_API_KEY', 'mo_translucent', 'expertise'], title='Settings',
                         parent=parent)
     result = box.exec()
     if result is not None:
