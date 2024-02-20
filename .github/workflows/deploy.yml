@@ -14,19 +14,17 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest, macos-latest, [ macOS, ARM64 ] ]
+    defaults:
+      run:
+        shell: bash -el {0}
     steps:
       - uses: actions/checkout@v4
       - uses: conda-incubator/setup-miniconda@v3
         with:
           activate-environment: iMolpro
           auto-activate-base: false
-      - name: init
-        shell: bash
-        run: conda init
       - name: Build
-        shell: bash
         run: |
-          conda activate iMolpro
           conda info
           conda list
           ./build.sh
