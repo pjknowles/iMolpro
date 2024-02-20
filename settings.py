@@ -7,10 +7,11 @@ from utilities import FileBackedDictionary
 
 print('in settings, os.environ',os.environ)
 for e in ['USERPROFILE','APPDATA','HOME']:
-    if e in os.environ: home_ = os.environ[e]
+    if e in os.environ: home_ = str(os.environ[e])
 print('in settings, home_=',home_)
 settings = FileBackedDictionary(
     str(pathlib.Path(home_) / '.molpro' / 'iMolpro.settings.json'))
+print('after settings=, home_=',home_,settings)
 
 
 def settings_edit(parent=None):
