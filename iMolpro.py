@@ -6,11 +6,12 @@ from PyQt5.QtCore import QEvent
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QMessageBox
 import sys
 
+import os
+print('environ',os.environ)
 from settings import settings
 from Chooser import Chooser
 from ProjectWindow import ProjectWindow
 from WindowManager import WindowManager
-import os
 import platform
 
 if __name__ == '__main__':
