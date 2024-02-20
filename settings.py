@@ -1,17 +1,16 @@
 import os
 import pathlib
-import platform
 
 from OptionsDialog import OptionsDialog
 from utilities import FileBackedDictionary
 
-print('in settings, os.environ',os.environ)
-for e in ['USERPROFILE','APPDATA','HOME']:
+print('in settings, os.environ', os.environ)
+for e in ['APPDATA', 'USERPROFILE', 'HOME']:
     if e in os.environ: home_ = str(os.environ[e])
-print('in settings, home_=',home_)
+print('in settings, home_=', home_)
 settings = FileBackedDictionary(
     str(pathlib.Path(home_) / '.molpro' / 'iMolpro.settings.json'))
-print('after settings=, home_=',home_,settings)
+print('after settings=, home_=', home_, settings)
 
 
 def settings_edit(parent=None):
@@ -32,3 +31,6 @@ def settings_edit(parent=None):
         for k in settings:
             if k not in result:
                 del settings[k]
+
+
+print('leaving settings.py, home_=', home_, settings)
