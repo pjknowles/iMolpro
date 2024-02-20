@@ -5,6 +5,7 @@ import platform
 from OptionsDialog import OptionsDialog
 from utilities import FileBackedDictionary
 
+print('in settings, os.environ',os.environ)
 settings = FileBackedDictionary(
     str(pathlib.Path(
         os.environ['APPDATA' if platform.system() == 'Windows' else 'HOME']) / '.molpro' / 'iMolpro.settings.json'))
