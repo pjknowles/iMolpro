@@ -7,8 +7,6 @@ from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QMessageBox
 import sys
 
 import os
-print('environ',os.environ)
-print('HOME',os.environ['HOME'])
 from settings import settings
 from Chooser import Chooser
 from ProjectWindow import ProjectWindow
