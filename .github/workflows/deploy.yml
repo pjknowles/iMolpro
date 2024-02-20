@@ -20,6 +20,9 @@ jobs:
         with:
           activate-environment: iMolpro
           auto-activate-base: false
+      - name: init
+        shell: bash
+        run: conda init
       - name: Build
         shell: bash
         run: |
