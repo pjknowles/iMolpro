@@ -6,9 +6,11 @@ from OptionsDialog import OptionsDialog
 from utilities import FileBackedDictionary
 
 print('in settings, os.environ',os.environ)
+for e in ['USERPROFILE','APPDATA','HOME']:
+    if e in os.environ: home_ = os.environ[e]
+print('in settings, home_=',home_)
 settings = FileBackedDictionary(
-    str(pathlib.Path(
-        os.environ['APPDATA' if platform.system() == 'Windows' else 'HOME']) / '.molpro' / 'iMolpro.settings.json'))
+    str(pathlib.Path(home_) / '.molpro' / 'iMolpro.settings.json'))
 
 
 def settings_edit(parent=None):
