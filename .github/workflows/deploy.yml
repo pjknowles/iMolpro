@@ -23,6 +23,7 @@ jobs:
       - name: Build
         shell: bash
         run: |
+          conda activate iMolpro
           conda info
           conda list
           ./build.sh
