@@ -1,3 +1,4 @@
+python == 3.10
 pyqt >=5.15
 pyqtwebengine >=5.15
 pyinstaller >=6
