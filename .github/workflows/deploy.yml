@@ -18,12 +18,12 @@ jobs:
       # - uses: s-weigand/setup-conda@v1
         # if: ${{ matrix.os == 'ubuntu-latest' }}
       - uses: conda-incubator/setup-miniconda@v3
-        if: ${{ matrix-os == 'ubuntu-latest' }}
+        if: ${{ matrix.os != 'macos-14' }}
         with:
           auto-update-conda: true
           # python-version: ${{ matrix.python-version }}
       - uses: conda-incubator/setup-miniconda@v3
-        if: ${{ matrix-os == 'macos-14' }}
+        if: ${{ matrix.os == 'macos-14' }}
         with:
           auto-update-conda: true
           environment-file: macos-arm_requirements.yaml
