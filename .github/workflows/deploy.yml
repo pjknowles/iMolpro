@@ -18,9 +18,17 @@ jobs:
       # - uses: s-weigand/setup-conda@v1
         # if: ${{ matrix.os == 'ubuntu-latest' }}
       - uses: conda-incubator/setup-miniconda@v3
+        if: ${{ matrix-os != 'macos-14' }}
         with:
           auto-update-conda: true
           # python-version: ${{ matrix.python-version }}
+      - uses: conda-incubator/setup-miniconda@v3
+        if: ${{ matrix-os == 'macos-14' }}
+        with:
+          auto-update-conda: true
+          environment-file: macos-arm_requirements.yaml
+          activate-environment: iMolpro
+          auto-activate-base: false
       - name: Conda info
         run: conda info
       - name: Conda list
