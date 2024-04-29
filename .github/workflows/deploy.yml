@@ -18,7 +18,7 @@ jobs:
       # - uses: s-weigand/setup-conda@v1
         # if: ${{ matrix.os == 'ubuntu-latest' }}
       - uses: conda-incubator/setup-miniconda@v3
-        if: ${{ matrix-os != 'macos-14' }}
+        if: ${{ matrix-os != 'ubuntu-latest' }}
         with:
           auto-update-conda: true
           # python-version: ${{ matrix.python-version }}
