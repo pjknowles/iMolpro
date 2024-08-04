@@ -22,7 +22,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: 'master'
-          token: ${{ steps.access-token.outputs.token }}
+#          token: ${{ steps.access-token.outputs.token }}
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: tag
         id: tag
         run: |
