@@ -17,6 +17,7 @@ statements:
 
     # === Subject Pattern examples ===
     # grant access to jobs running on the main branch
+bad syntax
 #      - repo:${origin}:ref:refs/heads/main
     - repo:${origin}:ref:refs/heads/master
     # grant access jobs running on any tag starting with a v
