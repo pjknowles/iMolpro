@@ -17,14 +17,14 @@ statements:
 
     # === Subject Pattern examples ===
     # grant access to jobs running on the main branch
-#    - repo:${origin}:ref:refs/heads/main
+    - repo:${origin}:ref:refs/heads/main
     # grant access jobs running on any tag starting with a v
     # - repo:${origin}:ref:refs/tags/v*
     # grant access to jobs using production environment
     # - repo:${origin}:environment:production
     # grant access to jobs of a specific workflow file
     # - repo:${origin}:workflow_ref:${origin}/.github/workflows/build.yml@refs/heads/main
-     - repo:${origin}:workflow_ref:${origin}/.github/workflows/tag-latest.yml@refs/heads/main
+#     - repo:${origin}:workflow_ref:${origin}/.github/workflows/tag-latest.yml@refs/heads/main
     permissions: # https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps
 #     actions: write # read or write
     # actions-variables: write # read or write
@@ -34,7 +34,7 @@ statements:
     # codespaces-lifecycle-admin: write # read or write
     # codespaces-metadata: write # read or write
     # codespaces-secrets: write # write
-#     contents: write # read or write
+     contents: write # read or write
     # custom-properties: write # read or write
     # dependabot-secrets: write # read or write
     # deployments: write # read or write
@@ -44,7 +44,7 @@ statements:
     # merge-queues: write # read or write
     # packages: write # read or write
     # pages: write # read or write
-     projects: write # read or write or admin
+#     projects: write # read or write or admin
     # pull-requests: write # read or write
     # repository-advisories: write # read or write
     # repository-hooks: write # read or write
