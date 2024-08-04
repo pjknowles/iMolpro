@@ -25,8 +25,7 @@ statements:
     # grant access to jobs of a specific workflow file
     # - repo:${origin}:workflow_ref:${origin}/.github/workflows/build.yml@refs/heads/main
     permissions: # https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps
-    # actions: write # read or write
-    actions: read
+     actions: write # read or write
     # actions-variables: write # read or write
     # administration: write # read or write - BE AWARE 'administration' scope can not be completely limited to a repository e.g. create new repositories is still possible
     # checks: write # read or write
