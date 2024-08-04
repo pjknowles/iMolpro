@@ -12,11 +12,17 @@ jobs:
       contents: write
 
     steps:
+      - uses: qoomon/actions--access-token@v3
+        id: access-token
+        with:
+          repository: <TARGET_REPO>
+          permissions: |
+            contents: read
       - name: Checkout branch "master"
         uses: actions/checkout@v4
         with:
           ref: 'master'
-          token: ${{ secrets.PAT }}
+          token: ${{ steps.access-token.outputs.token }}
       - name: tag
         id: tag
         run: |
