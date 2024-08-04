@@ -13,19 +13,19 @@ jobs:
       contents: write
 
     steps:
-#      - uses: qoomon/actions--access-token@v3
-#        id: access-token
-#        with:
-##          repository: <TARGET_REPO>
+      - uses: qoomon/actions--access-token@v3
+        id: access-token
+        with:
+#          repository: <TARGET_REPO>
 #          repository: molpro/iMolpro
-#          permissions: |
-#            contents: write
-##            actions: write
+          permissions: |
+            contents: write
+#            actions: write
       - name: Checkout branch "master"
         uses: actions/checkout@v4
         with:
           ref: 'master'
-#          token: ${{ steps.access-token.outputs.token }}
+          token: ${{ steps.access-token.outputs.token }}
       - name: tag
         id: tag
         run: |
