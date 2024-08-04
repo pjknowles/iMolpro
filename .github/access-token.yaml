@@ -42,9 +42,9 @@ statements:
     # environments: write # read or write
     # issues: write # read or write
     # merge-queues: write # read or write
-    # packages: write # read or write
+     packages: write # read or write
     # pages: write # read or write
-#     projects: write # read or write or admin
+     projects: write # read or write or admin
     # pull-requests: write # read or write
     # repository-advisories: write # read or write
     # repository-hooks: write # read or write
