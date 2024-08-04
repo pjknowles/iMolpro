@@ -16,7 +16,7 @@ jobs:
       - uses: qoomon/actions--access-token@v3
         id: access-token
         with:
-#          repository: <TARGET_REPO>
+          repository: <TARGET_REPO>
 #          repository: molpro/iMolpro
           permissions: |
             contents: write
