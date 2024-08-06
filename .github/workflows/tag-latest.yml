@@ -17,8 +17,7 @@ jobs:
         id: access-token
         with:
 #          repository: <TARGET_REPO>
-#          repository: molpro/iMolpro
-          repository: junk/junk
+          repository: pjknowles/iMolpro
           permissions: |
             contents: write
 #            actions: write
