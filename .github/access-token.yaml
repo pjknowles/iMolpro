@@ -19,7 +19,7 @@ statements:
     # grant access to jobs running on the main branch
 #      - repo:${origin}:ref:refs/heads/main
 #    - repo:${origin}:ref:refs/heads/master
-    - repo:molpro/iMolpro
+    - repo:molpro/iMolpro:ref:refs/heads/master
     # grant access jobs running on any tag starting with a v
     # - repo:${origin}:ref:refs/tags/v*
     # grant access to jobs using production environment
