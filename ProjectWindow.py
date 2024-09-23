@@ -644,15 +644,15 @@ class ProjectWindow(QMainWindow):
         if 'stderr' in self.output_panes:
             self.output_tabs.removeTab(self.output_tabs.indexOf(self.output_panes['stderr']))
             del self.output_panes['stderr']
-            self.refresh_output_tabs()
+        for vod in list(self.vods.keys()):
+            if vod not in ['builder', 'initial structure', 'inp']:
+                del self.vods[vod]
+        self.refresh_output_tabs()
         try:
             self.project.run(force=force)
         except Exception as e:
             QMessageBox.critical(self, 'Job submission failed', 'Cannot submit job:\n' + str(e))
             return False
-        for vod in list(self.vods.keys()):
-            if vod not in ['builder', 'initial structure', 'inp']:
-                del self.vods[vod]
         for i in range(len(self.output_tabs)):
             if self.output_tabs.tabText(i) == 'out':
                 self.output_tabs.setCurrentIndex(i)
@@ -755,15 +755,29 @@ Jmol.jmolBr()
 
 
  var r = [
-    ["mo resolution 4","Very coarse",true],
-    ["mo resolution 7","Coarse",true],
-    ["mo resolution 10","Medium"],
-    ["mo resolution 13","Fine"],
-    ["mo resolution 16","Very fine"]
+    ["mo resolution 4","--"],
+    ["mo resolution 7","-",true],
+    ["mo resolution 10","10"],
+    ["mo resolution 13","+"],
+    ["mo resolution 16","++"]
  ];
- Jmol.jmolHtml("Resolution:<br>")
- Jmol.jmolRadioGroup(myJmol, r, "<br>", "Resolution");
 Jmol.jmolBr()
+ Jmol.jmolHtml("Orbital resolution:<br>")
+ Jmol.jmolRadioGroup(myJmol, r, " ", "Resolution");
+Jmol.jmolBr()
+
+ var t = [
+    ['mo translucent  """ + str(float(settings['orbital_transparency'])-0.2) + """',"--"],
+    ['mo translucent  """ + str(float(settings['orbital_transparency'])-0.1) + """',"-"],
+    ['mo translucent  """ + str(float(settings['orbital_transparency'])) + """','""" + str(float(settings['orbital_transparency'])) + """',true],
+    ['mo translucent  """ + str(float(settings['orbital_transparency'])+0.1) + """',"+"],
+    ['mo translucent  """ + str(float(settings['orbital_transparency'])+0.2) + """',"++"],
+ ];
+Jmol.jmolBr()
+ Jmol.jmolHtml("Orbital transparency:<br>")
+ Jmol.jmolRadioGroup(myJmol, t, " ", "Orbital transparency");
+Jmol.jmolBr()
+
 Jmol.jmolBr()
 Jmol.jmolCheckbox(myJmol,'mo TITLEFORMAT "Model %M, MO %I/%N|Energy = %E %U|?Label = %S|?Occupancy = %O"', "mo TITLEFORMAT ' '","orbital info")
 
