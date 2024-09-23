@@ -3,7 +3,7 @@ name: Tag latest
 on:
   push:
     branches:
-      - 'master'
+      - 'open-babel'
 
 jobs:
   tag:
@@ -15,7 +15,7 @@ jobs:
       - name: Checkout branch "master"
         uses: actions/checkout@v4
         with:
-          ref: 'master'
+          ref: 'open-babel'
           token: ${{ secrets.PAT }}
       - name: tag
         id: tag
