@@ -1,7 +1,13 @@
 #!/bin/sh
 
-conda install -c conda-forge -y --file=requirements.txt  || exit 1
+conda install -c conda-forge -y --file=requirements.txt python=3.12 scipy=1.11  || exit 1
+conda remove -y pubchempy
+pip install --force-reinstall https://github.com/molpro/PubChemPy/archive/refs/heads/master.zip
+conda list
 
+#if [ "$(uname)" = Darwin -a $(uname -m) = x86_64 ]; then
+#  conda install -c conda-forge -y scipy==1.11
+#fi
 
 if [ "$(uname)" = Darwin ]; then
   pyinstaller_opt="--windowed --osx-bundle-identifier=net.molpro.iMolpro --icon=molpro.icns"
@@ -55,9 +61,11 @@ if [ "$(uname)" = Darwin ]; then
   if [ -r /Volumes/iMolpro-"${descriptor}" ]; then umount /Volumes/iMolpro-"${descriptor}" ; fi
   rm -rf dist
   mkdir -p dist
+  ls -lR dist
 #  create-dmg --app-drop-link 25 35 --volname iMolpro-"${descriptor}"  --volicon 'Molpro_Logo_Molpro_Quantum_Chemistry_Software.png' dist/iMolpro-"${descriptor}".dmg "${builddir}"/dist
-  hdiutil create -verbose ./iMolpro.dmg -ov -fs HFS+ -srcfolder "${builddir}"/dist
-  hdiutil convert -verbose ./iMolpro.dmg -format UDZO -o dist/iMolpro-"${descriptor}".dmg
+  hdiutil create ./iMolpro.dmg -ov -fs HFS+ -srcfolder "${builddir}"/dist
+  echo after first hdiutil
+  hdiutil convert ./iMolpro.dmg -format UDZO -o dist/iMolpro-"${descriptor}".dmg
   cp Molpro_Logo_Molpro_Quantum_Chemistry_Software.png "${builddir}"
   (cd "${builddir}" && sips -i Molpro_Logo_Molpro_Quantum_Chemistry_Software.png && DeRez -only icns Molpro_Logo_Molpro_Quantum_Chemistry_Software.png > tmp.rsrc)
   Rez -append "${builddir}"/tmp.rsrc -o dist/iMolpro-"${descriptor}".dmg
