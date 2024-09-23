@@ -2,7 +2,7 @@
 
 conda install -c conda-forge -y --file=requirements.txt python=3.12 scipy=1.11  || exit 1
 conda remove -y pubchempy
-pip install --force-reinstall https://github.com/molpro/PubChemPy/archive/refs/heads/master.zip
+pip install https://github.com/molpro/PubChemPy/archive/refs/heads/master.zip
 conda list
 
 #if [ "$(uname)" = Darwin -a $(uname -m) = x86_64 ]; then
@@ -26,6 +26,7 @@ PATH=/usr/bin:$PATH pyi-makespec \
   --add-data Molpro_Logo_Molpro_Quantum_Chemistry_Software.png:. \
   --add-data README.md:. \
   --add-data doc:./doc \
+  --add-data "${CONDA_PREFIX}"/share/openbabel:./share/openbabel \
   --add-data "${versionfile}":. \
   $pyinstaller_opt \
   iMolpro.py || exit 1
