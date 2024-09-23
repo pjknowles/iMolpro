@@ -20,13 +20,14 @@ git config --global --add safe.directory "$PWD"
 version=$(git describe --tags --dirty --always)
 echo "$version" > "${versionfile}"
 
+#  --add-data "${CONDA_PREFIX}"/share/openbabel:./share/openbabel \
 PATH=/usr/bin:$PATH pyi-makespec \
   --add-data JSmol.min.js:. \
   --add-data j2s:./j2s \
   --add-data Molpro_Logo_Molpro_Quantum_Chemistry_Software.png:. \
   --add-data README.md:. \
   --add-data doc:./doc \
-  --add-data "${CONDA_PREFIX}"/share/openbabel:./share/openbabel \
+  --collect-all openbabel \
   --add-data "${versionfile}":. \
   $pyinstaller_opt \
   iMolpro.py || exit 1
