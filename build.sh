@@ -29,7 +29,7 @@ PATH=/usr/bin:$PATH pyi-makespec \
   --add-data doc:./doc \
   --collect-all openbabel \
   --add-data "${versionfile}":. \
-  --debug all --clean \
+  --debug all \
   $pyinstaller_opt \
   iMolpro.py || exit 1
 sed -i -e '$d' iMolpro.spec
