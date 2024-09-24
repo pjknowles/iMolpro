@@ -1,6 +1,6 @@
 #!/bin/sh
 
-conda install -c conda-forge -y --file=requirements.txt python=3.12 scipy=1.11  || exit 1
+conda install -c conda-forge -y --file=requirements.txt pyinstaller=6.9 python=3.12 scipy=1.11  || exit 1
 conda remove -y pubchempy
 pip install https://github.com/molpro/PubChemPy/archive/refs/heads/master.zip
 conda list
