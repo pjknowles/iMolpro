@@ -1,6 +1,6 @@
 #!/bin/sh
 
-conda install -c conda-forge -y --file=requirements.txt python=3.11 scipy=1.11  || exit 1
+conda install -c conda-forge -y --file=requirements.txt python=3.12 scipy=1.11  || exit 1
 conda remove -y pubchempy
 pip install https://github.com/molpro/PubChemPy/archive/refs/heads/master.zip
 conda list
@@ -29,6 +29,7 @@ PATH=/usr/bin:$PATH pyi-makespec \
   --add-data doc:./doc \
   --collect-all openbabel \
   --add-data "${versionfile}":. \
+  --debug all --clean \
   $pyinstaller_opt \
   iMolpro.py || exit 1
 sed -i -e '$d' iMolpro.spec
