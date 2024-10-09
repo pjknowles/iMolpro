@@ -1,4 +1,5 @@
 import concurrent.futures
+import copy
 import difflib
 import glob
 import os
@@ -9,15 +10,17 @@ import sys
 import re
 import platform
 
-from PyQt5.QtCore import QTimer, pyqtSignal, QUrl, QCoreApplication, Qt, QSize
-from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage, QWebEngineProfile
+import pymolpro
+from PyQt5.QtCore import QTimer, pyqtSignal, QUrl, QCoreApplication, Qt, QSize, QEvent
+from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from PyQt5.QtWidgets import QMainWindow, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QComboBox, QLabel, \
-    QMessageBox, QTabWidget, QFileDialog, QFormLayout, QLineEdit, \
-    QSplitter, QMenu, QGridLayout, QInputDialog, QCheckBox, QApplication, QToolButton
-from PyQt5.QtGui import QIntValidator, QFont
+    QMessageBox, QTabWidget, QFileDialog, QSplitter, QMenu, QGridLayout, QInputDialog, QCheckBox, QApplication, \
+    QToolButton, QAction
+from PyQt5.QtGui import QFont, QDesktopServices
 from pymolpro import Project
 
 import molpro_input
+from BasisSelector import BasisSelector
 from SpinComboBox import SpinComboBox
 from molpro_input import InputSpecification
 from CheckableComboBox import CheckableComboBox
@@ -27,9 +30,13 @@ from RecentMenu import RecentMenu
 from database import database_choose_structure
 from help import HelpManager
 from utilities import EditFile, ViewFile, factory_vibration_set, factory_orbital_set
-from backend import configure_backend, BackendConfigurationEditor
+from backend import configure_backend, BackendConfigurationEditor, sanitise_backends
 from settings import settings, settings_edit
 from OptionsDialog import OptionsDialog
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class StatusBar(QLabel):
@@ -91,36 +98,45 @@ class ProjectWindow(QMainWindow):
     close_signal = pyqtSignal(QWidget, name='closeSignal')
     new_signal = pyqtSignal(QWidget, name='newSignal')
     chooser_signal = pyqtSignal(QWidget, name='chooserSignal')
-    trace = settings['ProjectWindow_debug'] if 'ProjectWindow_debug' in settings else 0
     null_prompt = '- Select -'
     all_qualities = 'All Qualities'
     basis_qualities = [all_qualities, 'SZ', 'DZ', 'TZ', 'QZ', '5Z', '6Z']
 
     def resizeEvent(self, e):
         super().resizeEvent(e)
-        # print('ProjectWindow.resizeEvent', self.size())
-        settings['project_window_width'] = self.size().width()
-        settings['project_window_height'] = self.size().height()
+        logger.debug('ProjectWindow.resizeEvent: ' + str(self.size()))
+        self.restart_vods()
+
+    def restart_vods(self):
+        logger.debug('Restarting vods')
+        for vod in list(self.vods.keys()):
+            # if vod not in ['builder', 'initial structure', 'inp']:
+            if vod in self.vods:
+                del self.vods[vod]
+            self.rebuild_vod_selector()
+        self.refresh_output_tabs(force=True)
+
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        logger.debug('event.type() ' + str(event.type))
+        if True or event.type() == QEvent.WindowStateChange:
+            logger.debug('windowStateChange')
+            logger.debug('full screen ? ' + str(self.isFullScreen()))
+            if not self.isFullScreen():
+                self.normal_geometry = self.normalGeometry()
+            logger.debug('normal_geometry ' + str(self.normal_geometry))
+            settings['project_window_width'] = self.normal_geometry.width()
+            settings['project_window_height'] = self.normal_geometry.height()
 
     def __init__(self, filename, window_manager, latency=1000):
         super().__init__(None)
         self.window_manager = window_manager
+        if 'project_window_width' in settings and 'project_window_height' in settings:
+            self.resize(settings['project_window_width'], settings['project_window_height'])
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(max_workers=5)
         self.initialised_from_input = False
 
-        try:
-            if platform.uname().system == 'Windows':
-                os.environ['PATH'] = os.path.dirname(os.path.abspath(__file__))+ ';' + os.environ['PATH']
-                if 'CONDA_PREFIX' not in os.environ:
-                    os.environ['CONDA_PREFIX'] = os.path.dirname(os.path.abspath(__file__))
-            elif 'PATH' in os.environ and 'SHELL' in os.environ:
-                os.environ['PATH'] = os.popen(os.environ['SHELL'] + " -l -c 'echo $PATH'").read() + ':' + os.environ[
-                    'PATH']  # make PATH just as if running from shell
-        except Exception as e:
-            msg = QMessageBox()
-            msg.setText('Error in setting PATH')
-            msg.setDetailedText(str(e))
-            msg.exec()
+        self.normal_geometry = self.normalGeometry()
 
         assert filename is not None
         try:
@@ -133,11 +149,13 @@ class ProjectWindow(QMainWindow):
             self.invalid = True
             return
 
+        sanitise_backends(self)
+
         settings['project_directory'] = os.path.dirname(self.project.filename(run=-1))
 
         self.jsmol_min_js = str(pathlib.Path(__file__).parent / "JSmol.min.js")
         if hasattr(sys, '_MEIPASS') and platform.uname().system != 'Windows':
-                os.environ['QTWEBENGINEPROCESS_PATH'] = os.path.normpath(os.path.join(
+            os.environ['QTWEBENGINEPROCESS_PATH'] = os.path.normpath(os.path.join(
                 sys._MEIPASS, 'PyQt5', 'Qt', 'libexec', 'QtWebEngineProcess'
             ))
         os.environ['QTWEBENGINE_CHROMIUM_FLAGS'] = '--no-sandbox'
@@ -256,6 +274,8 @@ class ProjectWindow(QMainWindow):
         container.setLayout(self.layout)
         self.setCentralWidget(container)
         splitter.setSizes([1, 1])
+        if not pathlib.Path(self.project.filename('xml')).exists():
+            self.show_initial_structure()
 
     def discover_external_viewer_commands(self):
         external_command_stems = [
@@ -311,12 +331,18 @@ class ProjectWindow(QMainWindow):
         menubar.addAction('Select a structure from a previous geometry optimisation...', 'Files',
                           self.database_import_optimised,
                           tooltip='Select a structure from a previous geometry optimisation')
+        menubar.addAction('Convert xyz geometry to Z-matrix', 'Files',
+                          self.convert_xyz_to_zmat,
+                          tooltip='Convert xyz geometry to Z-matrix')
+        self.xyz_to_zmat_activate_or_not(self.input_uses_xyz_file() is not None)
         menubar.addAction('Import file', 'Files', self.import_file, 'Ctrl+I',
                           tooltip='Import one or more files, eg geometry definition, into the project')
         menubar.addAction('Export file', 'Files', self.export_file, 'Ctrl+E',
                           tooltip='Export one or more files from the project')
         menubar.addAction('Clean', 'Files', self.clean, tooltip='Remove old runs from the project')
-        menubar.addAction('Settings', 'Edit', lambda arg, parent=self: settings_edit(parent), tooltip='Edit settings')
+        menubar.addAction('Settings', 'Edit',
+                          lambda arg, parent=self: settings_edit(parent, {'orbital_transparency': self.restart_vods}),
+                          tooltip='Edit settings')
         menubar.addSeparator('Edit')
         menubar.addAction('Structure', 'Edit', self.edit_input_structure, 'Ctrl+D', 'Edit molecular geometry')
         menubar.addAction('Cut', 'Edit', self.input_pane.cut, 'Ctrl+X', 'Cut')
@@ -326,7 +352,7 @@ class ProjectWindow(QMainWindow):
         menubar.addAction('Redo', 'Edit', self.input_pane.redo, 'Shift+Ctrl+Z', 'Redo')
         menubar.addAction('Select All', 'Edit', self.input_pane.selectAll, 'Ctrl+A', 'Redo')
         menubar.addSeparator('Edit')
-        menubar.addAction('Zoom In', 'Edit', self.input_pane.zoomIn, 'Shift+Ctrl+=', 'Increase font size')
+        menubar.addAction('Zoom In', 'Edit', self.input_pane.zoomIn, 'Ctrl++', 'Increase font size')
         menubar.addAction('Zoom Out', 'Edit', self.input_pane.zoomOut, 'Ctrl+-', 'Decrease font size')
         menubar.addSeparator('Edit')
         self.guided_action = menubar.addAction('Guided mode', 'Edit', self.guided_toggle, 'Ctrl+G', checkable=True)
@@ -335,15 +361,19 @@ class ProjectWindow(QMainWindow):
         menubar.addSeparator('Files')
         menubar.addAction('Browse project folder', 'Files', self.browse_project, 'Ctrl+Alt+F',
                           tooltip='Look at the contents of the project folder.  With care, files can be edited or renamed, but note that this may break the integrity of the project.')
-        menubar.addAction('Zoom In', 'View', lambda: [p.zoomIn() for p in self.output_panes.values()], 'Alt+Shift+=',
+        menubar.addAction('Zoom In', 'View', lambda: [p.zoomIn() for p in self.output_panes.values()], 'Alt++',
                           'Increase font size')
         menubar.addAction('Zoom Out', 'View', lambda: [p.zoomOut() for p in self.output_panes.values()], 'Alt+-',
                           'Decrease font size')
         menubar.addSeparator('View')
-        menubar.addAction('Initial structure', 'View', self.visualise_input,
+        menubar.addAction('Initial structure 3D', 'View', self.visualise_input,
                           tooltip='View the molecular structure in the job input')
-        menubar.addAction('Final structure', 'View', self.visualise_output, 'Alt+D',
+        menubar.addAction('Final structure 3D', 'View', self.visualise_output, 'Alt+D',
                           tooltip='View the molecular structure at the end of the job')
+        menubar.addAction('Initial structure xyz', 'View', self.show_xyz_input,
+                          tooltip='View the xyz file for the molecular structure in the job input')
+        menubar.addAction('Final structure xyz', 'View', self.show_xyz_output,
+                          tooltip='View the xyz file for the molecular structure at the end of the job')
         if self.external_viewer_commands:
             self.external_menu = QMenu('View molecule in external program...')
             for command in self.external_viewer_commands.keys():
@@ -375,6 +405,8 @@ class ProjectWindow(QMainWindow):
         help_manager.register('Example', 'doc/example.md')
         help_manager.register('Backends', 'doc/backends.md')
         help_manager.register('Display', 'doc/display.md')
+        menubar.addAction('Jmol reference', 'Help',
+                          lambda: QDesktopServices.openUrl(QUrl('https://jmol.sourceforge.net/docs')))
         menubar.show()
 
     def edit_backend_configuration(self):
@@ -404,12 +436,15 @@ class ProjectWindow(QMainWindow):
             if self.output_tabs.tabText(i) == title:
                 self.output_tabs.removeTab(i)
 
-    def refresh_output_tabs(self):
+    def refresh_output_tabs(self, force=False):
+        index = self.output_tabs.currentIndex()
+        logger.debug('refresh output tabs')
         self.old_output_menu.refresh()
-        if len(self.output_tabs) != len(
+        if force or len(self.output_tabs) != len(
                 [tab_name for tab_name, pane in self.output_panes.items() if
                  os.path.exists(self.project.filename(re.sub(r'.*\.', '', tab_name)))]) + len(self.vods):
             self.output_tabs.clear()
+            logger.debug('rebuilding output tabs')
             for suffix, pane in self.output_panes.items():
                 if os.path.exists(self.project.filename(suffix)):
                     self.output_tabs.addTab(pane, suffix)
@@ -418,6 +453,7 @@ class ProjectWindow(QMainWindow):
         if 'stderr' not in self.output_panes.keys() and self.project.status == 'completed' and not (
                 os.path.exists(self.project.filename('out')) and self.project.out):
             self.add_output_tab(0, suffix='stderr', name='stderr')
+        self.output_tabs.setCurrentIndex(index)
         # print('end refresh output tabs')
 
     def add_output_tab(self, run: int, suffix='out', name=None):
@@ -429,7 +465,7 @@ class ProjectWindow(QMainWindow):
                 self.output_tabs.setCurrentIndex(i)
 
     def guided_toggle(self):
-        if self.trace: print('guided_toggle')
+        logger.debug('guided_toggle')
         index = 1 if self.guided_action.isChecked() else 0
         if 'inp' in self.output_panes:
             if index == 0:
@@ -462,7 +498,7 @@ class ProjectWindow(QMainWindow):
             self.input_tabs.setCurrentIndex(index)
 
     def input_text_changed_consequence(self, index=0):
-        if self.trace: print('input_text_changed_consequence, index=', index)
+        logger.debug('input_text_changed_consequence, index=' + str(index))
         guided = self.guided_possible()
         if guided:
             self.input_specification = InputSpecification(self.input_pane.toPlainText(),
@@ -477,7 +513,7 @@ class ProjectWindow(QMainWindow):
         return guided
 
     def input_tab_changed_consequence(self, index=0):
-        if self.trace: print('input_tab_changed_consequence, index=', index, self.input_tabs.currentIndex())
+        logger.debug('index=' + str(index) + ' ' + str(self.input_tabs.currentIndex()))
         if self.input_tabs.currentIndex() == 1:
             self.guided_pane.refresh()
 
@@ -510,6 +546,8 @@ class ProjectWindow(QMainWindow):
         return result
 
     def vod_selector_action(self, text, external_path=None, force=False):
+        logger.debug('vod_selector_action ' + text + ' ' + str(external_path))
+        logger.debug('self.vods ' + str(self.vods))
         # print('vod_selector_action', text, external_path, force)
         if force and self.vod_selector.currentText().strip() == 'None':
             self.vod_selector.setCurrentText('Final structure')
@@ -541,6 +579,8 @@ class ProjectWindow(QMainWindow):
                     self.visualise_output(external_path, '', self.project.filename('molden', typ, run=0))
 
     def rebuild_vod_selector(self):
+        logger.debug('rebuild_vod_selector')
+        self.vods.clear()
         for t, f in self.geometry_files():
             self.vod_selector_action('Edit ' + f)
         self.vod_selector_action('Initial structure')
@@ -576,6 +616,14 @@ class ProjectWindow(QMainWindow):
         return result
 
     def run(self, force=False):
+        molprorc = ''
+        with open(pathlib.Path(self.project.filename(run=-1)) / 'molpro.rc', 'r') as f:
+            molprorc = f.read()
+        molprorc = molprorc.replace(' --xml-orbdump', '')
+        if 'orbitals' in self.input_specification:
+            molprorc += ' --xml-orbdump'
+        with open(pathlib.Path(self.project.filename(run=-1)) / 'molpro.rc', 'w') as f:
+            f.write(molprorc)
         if self.guided_possible() and ('geometry' not in self.input_specification or (
                 self.input_specification['geometry'][-4:] == '.xyz' and not os.path.exists(
             self.project.filename('', self.input_specification['geometry'], run=
@@ -585,15 +633,15 @@ class ProjectWindow(QMainWindow):
         if 'stderr' in self.output_panes:
             self.output_tabs.removeTab(self.output_tabs.indexOf(self.output_panes['stderr']))
             del self.output_panes['stderr']
-            self.refresh_output_tabs()
+        for vod in list(self.vods.keys()):
+            if vod not in ['builder', 'initial structure', 'inp']:
+                del self.vods[vod]
+        self.refresh_output_tabs()
         try:
             self.project.run(force=force)
         except Exception as e:
             QMessageBox.critical(self, 'Job submission failed', 'Cannot submit job:\n' + str(e))
             return False
-        for vod in list(self.vods.keys()):
-            if vod not in ['builder', 'initial structure', 'inp']:
-                del self.vods[vod]
         for i in range(len(self.output_tabs)):
             if self.output_tabs.tabText(i) == 'out':
                 self.output_tabs.setCurrentIndex(i)
@@ -622,8 +670,8 @@ class ProjectWindow(QMainWindow):
                 self.embedded_vod(filename, command='mo HOMO', title=title)
 
     def embedded_vod(self, file, command='', title='structure', **kwargs):
-        width = self.output_tabs.geometry().width() - 310
-        height = self.output_tabs.geometry().height() - 40
+        height, width = self.embedded_geometry(280)
+        logger.debug('embedded_vod ' + file + ', ' + command + ', ' + title + ', ' + str(height) + ', ' + str(width))
         firstmodel = 1
         firstvib = 1
         firstorb = 1
@@ -637,7 +685,7 @@ class ProjectWindow(QMainWindow):
             firstmodel = firstorb = orbs.coordinateSet
         except (IndexError, KeyError):
             orbs = None
-        if not 'mo_translucent' in settings: settings['mo_translucent'] = 0.3
+        if not 'orbital_transparency' in settings: settings['orbital_transparency'] = 0.3
         html = """<!DOCTYPE html>
 <html>
 <head>
@@ -654,7 +702,8 @@ var Info = {
   width: """ + str(width) + """,
   script: "load '""" + re.sub('\\\\', '\\\\\\\\',
                               file) + """'; set antialiasDisplay ON; set showFrank OFF; model """ + str(
-            firstmodel) + """; """ + command + """; mo nomesh fill translucent """ + str(settings['mo_translucent']) + """; mo resolution 7; mo titleFormat ' '",
+            firstmodel) + """; """ + command + """; mo nomesh fill translucent """ + str(
+            settings['orbital_transparency']) + """; mo resolution 7; mo titleFormat ' '",
   use: "HTML5",
   j2sPath: "j2s",
   serverURL: "php/jsmol.php",
@@ -696,28 +745,42 @@ Jmol.jmolBr()
 
 
  var r = [
-    ["mo resolution 4","Very coarse",true],
-    ["mo resolution 7","Coarse",true],
-    ["mo resolution 10","Medium"],
-    ["mo resolution 13","Fine"],
-    ["mo resolution 16","Very fine"]
+    ["mo resolution 4","--"],
+    ["mo resolution 7","-",true],
+    ["mo resolution 10","10"],
+    ["mo resolution 13","+"],
+    ["mo resolution 16","++"]
  ];
- Jmol.jmolHtml("Resolution:<br>")
- Jmol.jmolRadioGroup(myJmol, r, "<br>", "Resolution");
 Jmol.jmolBr()
+ Jmol.jmolHtml("Orbital resolution:<br>")
+ Jmol.jmolRadioGroup(myJmol, r, " ", "Resolution");
+Jmol.jmolBr()
+
+ var t = [
+    ['mo translucent  """ + str(float(settings['orbital_transparency']) - 0.2) + """',"--"],
+    ['mo translucent  """ + str(float(settings['orbital_transparency']) - 0.1) + """',"-"],
+    ['mo translucent  """ + str(float(settings['orbital_transparency'])) + """','""" + str(
+                float(settings['orbital_transparency'])) + """',true],
+    ['mo translucent  """ + str(float(settings['orbital_transparency']) + 0.1) + """',"+"],
+    ['mo translucent  """ + str(float(settings['orbital_transparency']) + 0.2) + """',"++"],
+ ];
+Jmol.jmolBr()
+ Jmol.jmolHtml("Orbital transparency:<br>")
+ Jmol.jmolRadioGroup(myJmol, t, " ", "Orbital transparency");
+Jmol.jmolBr()
+
 Jmol.jmolBr()
 Jmol.jmolCheckbox(myJmol,'mo TITLEFORMAT "Model %M, MO %I/%N|Energy = %E %U|?Label = %S|?Occupancy = %O"', "mo TITLEFORMAT ' '","orbital info")
 
 Jmol.jmolBr()
 </script>
-</td>
              """
         elif vibs and vibs.frequencies:
             html += """
         <script>
         Jmol.jmolHtml('<td>Vibrations: ')
         Jmol.jmolHtml(' ')
-        Jmol.jmolCheckbox(myJmol,"vibration on", "vibration off", "animate", 1)
+        Jmol.jmolCheckbox(myJmol,"vibration on", "vibration off", "animate", 0)
         Jmol.jmolHtml(' ')
         Jmol.script(myJmol, 'color vectors yellow')
         Jmol.jmolCheckbox(myJmol,"vectors on", "vectors off", "vectors")
@@ -727,16 +790,19 @@ Jmol.jmolBr()
               """
             for frequency in vibs.frequencies:
                 if abs(frequency) > 1.0:
-                    html += '["frame ' + str(firstvib) + '; vibration on", "' + str(frequency) + '"],'
+                    html += '["frame ' + str(firstvib) + '", "' + str(frequency) + '"],'
                 firstvib += 1
             html += """
         ],10);
         Jmol.jmolBr()
         </script>
-        </td>
                  """
 
         html += """
+        <script>
+          Jmol.jmolCheckbox(myJmol,'label "%e%i"; color labels black', "label off","atom labels")
+        </script>
+        </td>
         </tr>
 <script>
 Jmol.jmolHtml("<p>")
@@ -750,10 +816,17 @@ Jmol.jmolHtml("</p>")
 </html>"""
         self.add_vod(html, title=title, **kwargs)
 
+    def embedded_geometry(self, right_margin=280):
+        self.show()
+        width = self.geometry().width() - self.input_tabs.geometry().width() - right_margin
+        height = self.output_tabs.geometry().height() - 40
+        width = min(width, height)
+        height = min(width, height)
+        return height, width
+
     def embedded_builder(self, rawfile, title='builder', **kwargs):
         file = pathlib.Path(rawfile).as_posix()
-        width = max(400, self.output_tabs.geometry().width() - 310)
-        height = max(400, self.output_tabs.geometry().height() - 40)
+        height, width = self.embedded_geometry(280)
 
         html = """<!DOCTYPE html>
 <html>
@@ -815,7 +888,24 @@ Jmol.jmolHtml("</p>")
         vod.hide()
         self.vods[vod.title] = vod
 
+    def show_xyz(self, instance=-1):
+        for file in self.geometry_files():
+            full_file = self.project.filename('', file[1], instance)
+            logger.debug('xyz file ' + full_file)
+            with open(full_file, 'r') as f:
+                contents = ''.join(f.readlines())
+            logger.debug('xyz file ' + contents)
+            QMessageBox.information(self, 'xyz', contents)
+
+    def show_xyz_input(self):
+        self.show_xyz(-1)
+
+    def show_xyz_output(self):
+        self.show_xyz(0)
+        pass
+
     def visualise_input(self, external_path=None):
+        logger.debug('visualise_input' + str(self.vods.keys()))
         import tempfile
         geometry_directory = pathlib.Path(self.project.filename(run=-1)) / 'initial'
         geometry_directory.mkdir(exist_ok=True)
@@ -853,7 +943,7 @@ Jmol.jmolHtml("</p>")
                     return
                 geometry = project.geometry()
                 current_dir = os.path.dirname(self.project.filename(run=-1))
-                trash_project(project)
+                project.trash()
                 settings['project_directory'] = current_dir
                 with open(xyz_file, 'w') as f:
                     f.write(str(len(geometry)) + '\n\n')
@@ -897,7 +987,7 @@ Jmol.jmolHtml("</p>")
         if os.path.isfile(filename):
             settings['geometry_directory'] = os.path.dirname(filename)
             self.adopt_structure_file(filename)
-            self.edit_input_structure()
+            self.show_initial_structure()
             return filename
 
     def adopt_structure_file(self, filename):
@@ -910,13 +1000,26 @@ Jmol.jmolHtml("</p>")
                 self.rebuild_vod_selector()
             else:
                 self.input_pane.setPlainText('geometry=' + os.path.basename(filename) + '\n' + text)
+            self.xyz_to_zmat_activate_or_not(True)
+
+    def show_initial_structure(self):
+        self.destroy_vod('initial structure')
+        if len(self.geometry_files()) != 0 and pathlib.Path(
+                self.project.filename('', self.geometry_files()[0][1])).is_file():
+            self.visualise_input()
+            self.refresh_output_tabs()
+            # self.vod_selector_action('initial structure')
+            for i in range(len(self.output_tabs)):
+                if self.output_tabs.tabText(i) == 'initial structure':
+                    self.output_tabs.setCurrentIndex(i)
 
     def database_import_structure(self):
         if filename := database_choose_structure():
             self.adopt_structure_file(filename)
             os.remove(filename)
             os.rmdir(os.path.dirname(filename))
-            self.edit_input_structure()
+            self.show_initial_structure()
+
             return filename
 
     def database_import_optimised(self, run=None, file=None):
@@ -943,8 +1046,29 @@ Jmol.jmolHtml("</p>")
                     filename = files_[k]
             if filename:
                 self.adopt_structure_file(pathlib.Path(self.run_directories[run_]) / filename)
-                self.edit_input_structure()
+                self.show_initial_structure()
                 return filename
+
+    def input_uses_xyz_file(self):
+        if match := re.search(r'^ *geometry=(.*\.xyz)', self.input_pane.toPlainText(), re.MULTILINE):
+            return match.group(1)
+        else:
+            return None
+
+    def convert_xyz_to_zmat(self):
+        if xyzfile := self.input_uses_xyz_file() is not None:
+            zmat = pymolpro.xyz_to_zmat(self.project.filename('', xyzfile, -1))
+            self.input_pane.setPlainText(
+                self.input_pane.toPlainText().replace('geometry=' + xyzfile,
+                                                      '!geometry=' + xyzfile + '\nangstrom\ngeometry={\n' + zmat + '}')
+            )
+        self.xyz_to_zmat_activate_or_not(False)
+
+    def xyz_to_zmat_activate_or_not(self, activate: bool):
+        for action in self.menuBar().actions():
+            if action.text() == 'Files':
+                for action2 in self.menuBar().findChildren(QAction, 'Convert xyz geometry to Z-matrix'):
+                    action2.setEnabled(activate)
 
     def optimised_structure_files(self, run=0):
         run_directory_ = self.project.filename('', '', run)
@@ -1018,7 +1142,7 @@ Jmol.jmolHtml("</p>")
                                       'Are you sure you want to erase project ' + self.project.filename(run=-1))
         if result == QMessageBox.Yes:
             current_dir = os.path.dirname(self.project.filename(run=-1))
-            trash_project(self.project)
+            self.project.trash()
             settings['project_directory'] = current_dir
             self.close()
 
@@ -1026,12 +1150,6 @@ Jmol.jmolHtml("</p>")
         QMessageBox.information(self, 'Input specification', 'Input specification:\r\n' +
                                 re.sub('}$', '\n}', re.sub('^{', '{\n  ', str(self.input_specification))).replace(', ',
                                                                                                                   ',\n  '))
-
-
-def trash_project(project):
-    trash = pathlib.Path(settings['Trash'])
-    trash.mkdir(parents=True, exist_ok=True)
-    project.move(str(trash / os.path.basename(project.filename(run=-1))))
 
 
 class WebEnginePage(QWebEnginePage):
@@ -1087,21 +1205,15 @@ class BasisAndHamiltonianChooser(QWidget):
         self.guided_combo_basis_quality.addItems(self.basis_qualities)
         self.guided_combo_basis_quality.currentTextChanged.connect(self.changed_basis_quality)
 
-        self.guided_combo_basis_default = QComboBox(self)
-        self.guided_combo_basis_default.currentTextChanged.connect(self.changed_default_basis)
-
-        # layout = QFormLayout(self)
-        # layout.addRow('Hamiltonian', self.combo_hamiltonian)
-        # layout.addRow('Basis set quality', self.guided_combo_basis_quality)
-        # layout.addRow('Default Basis Set', self.guided_combo_basis_default)
+        self.basis_selector = BasisSelector(self.changed_default_basis, self.null_prompt)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(RowOfTitledWidgets({
             'Hamiltonian': self.combo_hamiltonian,
             'Quality': self.guided_combo_basis_quality,
-            'Basis': self.guided_combo_basis_default,
-        }, title='Hamiltonian and basis'))
+            'Basis': self.basis_selector,
+        }, title='Hamiltonian and basis', alignment=Qt.AlignCenter | Qt.AlignTop))
 
     def refresh(self):
         while True:
@@ -1111,6 +1223,8 @@ class BasisAndHamiltonianChooser(QWidget):
                     self.desired_basis_quality if self.desired_basis_quality > 0 else 3)
                 continue
 
+            core_correlation = self.input_specification[
+                'core_correlation'] if 'core_correlation' in self.input_specification else 'large'
             possible_basis_sets = [k for k in self.basis_registry.keys() if (  # True or
                     self.desired_basis_quality == 0 or self.basis_registry[k][
                 'quality'] == self.basis_qualities[self.desired_basis_quality]
@@ -1119,15 +1233,15 @@ class BasisAndHamiltonianChooser(QWidget):
                                            not 'hamiltonian' in self.input_specification or
                                            self.hamiltonian_type(k) == self.input_specification[
                                                'hamiltonian']
-                                   )]
-            self.guided_combo_basis_default.clear()
-            self.guided_combo_basis_default.addItems([self.null_prompt] + possible_basis_sets)
-            if self.input_specification['basis']['elements'] or not self.input_specification['basis'][
-                                                                        'default'] in possible_basis_sets:
-                self.guided_combo_basis_default.setCurrentText(self.null_prompt)
-            else:
-                self.guided_combo_basis_default.setCurrentText(self.input_specification['basis']['default'])
-            self.guided_combo_basis_default.show()
+                                   )
+                                   and (
+                                           core_correlation == 'mixed'
+                                           or (core_correlation == 'small' and 'CV' in k)
+                                           or core_correlation == 'large'
+                                   )
+                                   ]
+            self.basis_selector.reload(self.input_specification['basis'], possible_basis_sets)
+            self.basis_selector.show()
 
             self.guided_combo_basis_quality.setCurrentText(self.basis_qualities[self.desired_basis_quality])
             self.combo_hamiltonian.setCurrentText(
@@ -1155,12 +1269,15 @@ class BasisAndHamiltonianChooser(QWidget):
                            molpro_input.hamiltonians[self.input_specification['hamiltonian']]['basis_string'],
                 'elements': {}, 'quality': quality}
 
-    def changed_default_basis(self, text):
-        if not text or text == self.null_prompt or text == self.input_specification['basis']['default']: return
-        self.input_specification['basis']['default'] = text
-        self.input_specification['basis']['elements'] = {}
-        self.input_specification['basis']['quality'] = self.input_specification.basis_quality
-        self.write()
+    def changed_default_basis(self, spec):
+        if (spec and
+                'default' in spec and
+                spec['default'] != self.null_prompt and
+                spec['default'] != '' and
+                spec != self.input_specification['basis']):
+            self.input_specification['basis'] = copy.deepcopy(spec)
+            self.input_specification['basis']['quality'] = self.input_specification.basis_quality
+            self.write()
 
     def write(self):
         self.parent.refresh_input_from_specification()
@@ -1188,7 +1305,6 @@ class GuidedPane(QWidget):
         super().__init__(parent)
         self.parent = parent
         self.project = self.parent.project
-        self.trace = self.parent.trace
         self.input_pane = self.parent.input_pane
         self.setContentsMargins(0, 0, 0, 0)
         self.method_asserted = False
@@ -1260,10 +1376,6 @@ class GuidedPane(QWidget):
         self.print_button.clicked.connect(self.print_edit)
         self.print_button.setToolTip('Specify global print levels')
         self.print_button.setStyleSheet('font-size: ' + str(self.fontInfo().pointSize() - 1) + 'pt;')
-
-        self.method_options_button = QPushButton('Options')  # TODO delete when we are settled
-        self.method_options_button.clicked.connect(self.method_options_edit)
-        self.method_options_button.setToolTip('Specify options for the main method')
 
         self.step_options_combo = QComboBox(self)
         self.step_options_combo.currentIndexChanged.connect(
@@ -1433,7 +1545,7 @@ class GuidedPane(QWidget):
         self.refresh_input_from_specification()
 
     def refresh_input_from_specification(self):
-        if self.trace: print('refresh_input_from_specification')
+        logger.debug('refresh_input_from_specification')
         if not self.parent.guided_possible(): return
         new_input = self.input_specification.input()
         if not molpro_input.equivalent(self.input_pane.toPlainText(), new_input):
@@ -1498,23 +1610,11 @@ class GuidedPane(QWidget):
             self.refresh_input_from_specification()
         self.step_options_combo.setCurrentIndex(0)
 
-    def method_options_edit(self, flag):
-        return self.step_options_edit([s['command'] for s in self.parent.input_specification['steps']].index(
-            self.parent.input_specification.method))
-        # method_ = self.parent.input_specification.method
-        # available_options = [re.sub('.*:','',option) for option in list(self.parent.procedures_registry[method_.upper()]['options'])]
-        # title = 'Options for method ' + self.parent.input_specification.method
-        # existing_options = {o.split('=')[0]:o.split('=')[1] if len(o.split('='))>1 else '' for o in self.parent.input_specification.method_options}
-        # box = OptionsDialog(existing_options, available_options, title=title, parent=self, help_uri='https://www.molpro.net/manual/doku.php?q='+method_+'&do=search')
-        # result = box.exec()
-        # if result is not None:
-        #     self.parent.input_specification.method_options = [k+'='+v if v else k for k,v in result.items()]
-        #     self.refresh_input_from_specification()
-
 
 class RowOfTitledWidgets(QWidget):
-    def __init__(self, widgets, title=None, parent=None):
+    def __init__(self, widgets, title=None, parent=None, alignment=Qt.AlignCenter):
         super().__init__(parent)
+        self.alignment = alignment
         self.setContentsMargins(0, 0, 0, 0)
         # self.setStyleSheet('background-color: lightblue;')
         layout = QVBoxLayout(self)
@@ -1539,8 +1639,8 @@ class RowOfTitledWidgets(QWidget):
         for k, v in widgets.items():
             if k not in self.widgets.keys():
                 self.widget_captions[k] = QLabel(k)
-                self.layout2.addWidget(self.widget_captions[k], 0, len(self.widgets), alignment=Qt.AlignCenter)
-                self.layout2.addWidget(v, 1, len(self.widgets), alignment=Qt.AlignCenter)
+                self.layout2.addWidget(self.widget_captions[k], 0, len(self.widgets), alignment=self.alignment)
+                self.layout2.addWidget(v, 1, len(self.widgets), alignment=self.alignment)
                 self.widgets[k] = v
                 self.widget_captions[k].show()
                 self.widgets[k].show()

@@ -1,8 +1,10 @@
+import logging
 import os
 import pathlib
 import re
 from collections import UserDict
 
+logger = logging.getLogger(__name__)
 wave_fct_symm_commands = {
     'Automatic': '',
     'No Symmetry': 'symmetry,nosym'
@@ -72,12 +74,16 @@ class InputSpecification(UserDict):
         self.allowed_methods = list(set(allowed_methods).union(set(supported_methods)))
         self.directory = directory
         # print('self.allowed_methods',self.allowed_methods)
-        self.debug = debug
         if specification is not None:
             for k in specification:
                 self[k] = specification[k]
         if input is not None:
-            self.parse(input)
+            try:
+                self.parse(input)
+            except Exception as e:
+                print('Warning: InputSpecification.parse() has thrown an exception', e,
+                      '\nPlease report, with a copy of the input, at https://github.com/molpro/iMolpro/issues/new')
+                self.clear()
         if 'hamiltonian' not in self and self.data:
             self['hamiltonian'] = 'PP'
 
@@ -156,6 +162,8 @@ class InputSpecification(UserDict):
                     if (line.lower() == orientation_options[orientation_option].lower()):
                         self['orientation'] = orientation_option
                         break
+            elif command.lower() == 'angstrom':
+                self['angstrom'] = True
             elif ((command.lower() == 'nosym') or (re.match('^symmetry *, *', line, re.IGNORECASE))):
                 line = re.sub('^symmetry *, *', '', line, flags=re.IGNORECASE)
                 line = "symmetry," + line
@@ -214,10 +222,10 @@ class InputSpecification(UserDict):
                         self['basis']['elements'][ff[0][0].upper() + ff[0][1:].lower()] = ff[1].strip('\n ')
                 # print('made basis specification',self)
             elif re.match('^basis *=', line, re.IGNORECASE):
-                print('** warning should not happen')
+                # raise ValueError('unparseable basis', line)
+                self.data.clear(); return self
                 pass
             elif re.match('(set,)?[a-z][a-z0-9_]* *=.*$', line, flags=re.IGNORECASE):
-                if debug: print('variable')
                 line = re.sub(' *!.*$', '', re.sub('set *,', '', line, flags=re.IGNORECASE)).strip()
                 while (
                         newline := re.sub(r'(\[[0-9!]+),', r'\1!',
@@ -315,6 +323,9 @@ class InputSpecification(UserDict):
 
         if 'wave_fct_symm' in self:
             _input += wave_fct_symm_commands[self['wave_fct_symm']] + '\n'
+
+        if 'angstrom' in self and self['angstrom']:
+            _input += 'angstrom' + '\n'
 
         if 'geometry' in self:
             _input += ('geometry=' + self[
@@ -654,7 +665,7 @@ def canonicalise(input):
                                                               '\n')))))).rstrip(
         '\n ').lstrip(
         '\n ') + '\n'
-    result = re.sub(',+}','}', result)
+    result = re.sub(',+}', '}', result)
     # push variable assignments below geometry=file.xyz to hack compatibility with gmolpro guided
     # print('before hack', result)
     # hack for gmolpro geomtyp:
@@ -676,7 +687,7 @@ def canonicalise(input):
         result = re.sub('(\\w+=\\w+)\n(basis={[^\n]*})', '\\2\n\\1', result,
                         flags=re.MULTILINE | re.IGNORECASE | re.DOTALL)
     # print('after 1st hack', result)
-    result = re.sub('(dkho=\\d)\n(geomtyp=xyz)', '\\2\n\\1', result, flags=re.MULTILINE|re.IGNORECASE)
+    result = re.sub('(dkho=\\d)\n(geomtyp=xyz)', '\\2\n\\1', result, flags=re.MULTILINE | re.IGNORECASE)
     # hack for gmolpro-style frequencies:
     # print('after 2nd hack', result)
     result = result.replace('{FREQ}', '{frequencies\nthermo}')
@@ -732,9 +743,9 @@ def equivalent(input1, input2, debug=False):
     if isinstance(input1, InputSpecification): return equivalent(input1.input(), input2, debug)
     if isinstance(input2, InputSpecification): return equivalent(input1, input2.input(), debug)
     if debug:
-        print('equivalent: input1=', input1)
-        print('equivalent: input2=', input2)
-        print('equivalent: canonicalise(input1)=', canonicalise(input1))
-        print('equivalent: canonicalise(input2)=', canonicalise(input2))
-        print('will return this', canonicalise(input1).lower() == canonicalise(input2).lower())
+        logger.debug('equivalent: input1=', input1)
+        logger.debug('equivalent: input2=', input2)
+        logger.debug('equivalent: canonicalise(input1)=', canonicalise(input1))
+        logger.debug('equivalent: canonicalise(input2)=', canonicalise(input2))
+        logger.debug('will return this', canonicalise(input1).lower() == canonicalise(input2).lower())
     return canonicalise(input1).lower() == canonicalise(input2).lower()

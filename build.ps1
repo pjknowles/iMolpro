@@ -1,4 +1,4 @@
-cmd.exe /c conda install -c conda-forge -y --file=requirements.txt m2-base nsis
+cmd.exe /c conda install -c conda-forge -y --file=requirements.txt m2-base nsis python=3.9
 
 
 $versionfile = ( $env:TMP, "\VERSION") -join ""
