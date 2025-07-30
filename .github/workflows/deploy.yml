@@ -5,6 +5,8 @@ on:
   push:
     tags:
       - '*'
+    branches:
+      - mcs07
 jobs:
   deploy:
     name: Deploy on Unix
