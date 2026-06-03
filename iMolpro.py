@@ -1,7 +1,7 @@
 import pathlib
 
-from PyQt5.QtCore import QEvent
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QMessageBox
+from PyQt6.QtCore import QEvent
+from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QMessageBox
 import sys
 
 from Chooser import Chooser
@@ -18,7 +18,7 @@ if __name__ == '__main__':
 
     class App(QApplication):
         def event(self, e):
-            if e.type() == QEvent.FileOpen and os.path.splitext(e.file())[1] in ['.molpro','.out','.inp','.xml']:
+            if e.type() == QEvent.Type.FileOpen and os.path.splitext(e.file())[1] in ['.molpro','.out','.inp','.xml']:
                 window_manager.register(ProjectWindow(e.file(), window_manager))
             else:
                 return super().event(e)

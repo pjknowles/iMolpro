@@ -2,8 +2,9 @@ import os
 import pathlib
 import platform
 import re
+import time
 
-from PyQt5.QtCore import QCoreApplication, Qt, QUrl
+from PyQt6.QtCore import QCoreApplication, Qt, QUrl
 
 from MenuBar import MenuBar
 from RecentMenu import RecentMenu
@@ -11,10 +12,10 @@ from help import help_manager_default
 from utilities import force_suffix
 
 import pymolpro
-from PyQt5 import QtCore
-from PyQt5.QtGui import QPixmap, QKeySequence, QDesktopServices, QGuiApplication
-from PyQt5.QtWidgets import QMainWindow, QHBoxLayout, QLabel, QWidget, QVBoxLayout, QPushButton, QFileDialog, \
-    QDesktopWidget, QAction, QShortcut, QToolButton
+from PyQt6 import QtCore
+from PyQt6.QtGui import QShortcut, QAction, QScreen, QPixmap, QKeySequence, QDesktopServices, QGuiApplication, QScreen
+from PyQt6.QtWidgets import QMainWindow, QHBoxLayout, QLabel, QWidget, QVBoxLayout, QPushButton, QFileDialog, \
+       QToolButton
 
 from ProjectWindow import ProjectWindow
 from WindowManager import WindowManager
@@ -32,6 +33,7 @@ class PushButton(QPushButton):
 
 class Chooser(QMainWindow):
     def __init__(self, window_manager: WindowManager):
+        print('Chooser.__init__ entered')
         super().__init__()
         self.window_manager = window_manager
 
@@ -67,11 +69,11 @@ class Chooser(QMainWindow):
             def __init__(self, image, url=None, width=250, height=250):
                 super().__init__()
                 ratio = QGuiApplication.primaryScreen().devicePixelRatio()
-                self.setPixmap(QPixmap(image).scaled(int(width * ratio), int(height * ratio), Qt.KeepAspectRatio,
-                                                     QtCore.Qt.SmoothTransformation))
+                self.setPixmap(QPixmap(image).scaled(int(width * ratio), int(height * ratio), Qt.AspectRatioMode.KeepAspectRatio,
+                                                     QtCore.Qt.TransformationMode.SmoothTransformation))
                 self.pixmap().setDevicePixelRatio(ratio)
                 self.url = QUrl(url)
-                self.setAlignment(Qt.AlignCenter)
+                self.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
             def mousePressEvent(self, event):
                 if self.url is not None:
@@ -99,7 +101,7 @@ class Chooser(QMainWindow):
 
         helpButton = PushButton('Help', self)
         helpButton.clicked.connect(lambda: help_manager.show('Help', 'README'))
-        self.shortcutHelp = QShortcut(QKeySequence.HelpContents, self)
+        self.shortcutHelp = QShortcut(QKeySequence.StandardKey.HelpContents, self)
         self.shortcutHelp.activated.connect(self.close)
         # helpButton.setStyleSheet(":hover {border: none ; background-color: #D0D0D0}  ")
         link_layout.addWidget(helpButton)
@@ -131,28 +133,28 @@ class Chooser(QMainWindow):
 
         version_label = LinkLabel("iMolpro version " + version_(), 'https://github.com/molpro/iMolpro/tree/'+re.sub('-.*','',version_())+'/README.md')
         version_label.setStyleSheet("font-size: 10px")
-        version_label.setAlignment(Qt.AlignCenter)
+        version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         rh_panel.addWidget(version_label)
 
-        self.setWindowFlag(Qt.FramelessWindowHint)
+        self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
         self.showNormal()
-        menubar = MenuBar()
-        menubar.addAction('New', 'Projects', slot=self.newProjectDialog, shortcut='Ctrl+N',
+        self.menubar = MenuBar()
+        self.menubar.addAction('New', 'Projects', slot=self.newProjectDialog, shortcut='Ctrl+N',
                           tooltip='Create a new project')
-        menubar.addAction('Open', 'Projects', slot=self.openProjectDialog, shortcut='Ctrl+O',
+        self.menubar.addAction('Open', 'Projects', slot=self.openProjectDialog, shortcut='Ctrl+O',
                           tooltip='Open an existing project')
-        menubar.addSeparator('Projects')
+        self.menubar.addSeparator('Projects')
         self.recentMenu = RecentMenu(window_manager)
-        menubar.addSubmenu(self.recentMenu, 'Projects')
-        menubar.addSeparator('Projects')
-        menubar.addAction('Quit', 'Projects', slot=QCoreApplication.quit, shortcut='Ctrl+Q',
+        self.menubar.addSubmenu(self.recentMenu, 'Projects')
+        self.menubar.addSeparator('Projects')
+        self.menubar.addAction('Quit', 'Projects', slot=QCoreApplication.quit, shortcut='Ctrl+Q',
                           tooltip='Quit')
-        menubar.addAction('Settings', 'Edit', lambda arg, parent=self: settings_edit(parent), tooltip='Edit settings')
+        self.menubar.addAction('Settings', 'Edit', lambda arg, parent=self: settings_edit(parent), tooltip='Edit settings')
 
-        help_manager = help_manager_default(menubar)
+        help_manager = help_manager_default(self.menubar)
 
         if platform.system() == 'Darwin':
-            self.setMenuBar(menubar)
+            self.setMenuBar(self.menubar)
         else:
             self.shortcutQuit = QShortcut(QKeySequence("Ctrl+Q"), self)
             self.shortcutQuit.activated.connect(QCoreApplication.quit)
@@ -160,6 +162,7 @@ class Chooser(QMainWindow):
             self.shortcutNew.activated.connect(self.newProjectDialog)
             self.shortcutOpen = QShortcut(QKeySequence("Ctrl+O"), self)
             self.shortcutOpen.activated.connect(self.openProjectDialog)
+        print('Chooser.__init__ finished')
 
     def populate_recent_project_box(self, max_items=10):
 
@@ -203,13 +206,13 @@ class Chooser(QMainWindow):
         layout = self.recent_project_box.layout()
         for item in [layout.itemAt(i) for i in range(layout.count())]:
             self.recent_project_box.layout().removeItem(item)
-            item.widget().setParent(None)
-        self.recent_project_box.layout().addWidget(QLabel('Open a recently-used project:'), 0, QtCore.Qt.AlignLeft)
+            # item.widget().setParent(None)
+        self.recent_project_box.layout().addWidget(QLabel('Open a recently-used project:'), 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         for i in range(1, max_items):
             f = recent_project('molpro', i)
             if f:
                 button = RecentProjectButton(f, i, self)
-                self.recent_project_box.layout().addWidget(button, -1, QtCore.Qt.AlignLeft)
+                self.recent_project_box.layout().addWidget(button, -1, QtCore.Qt.AlignmentFlag.AlignLeft)
 
     def openProjectDialog(self):
         _dir = settings['project_directory'] if 'project_directory' in settings else os.path.curdir
@@ -228,7 +231,9 @@ class Chooser(QMainWindow):
             self.hide()
 
     def activate(self):
-        resolution = QDesktopWidget().screenGeometry()
+        # q_screen = QScreen(self)
+        q_screen = QGuiApplication.primaryScreen()
+        resolution = q_screen.geometry()
         self.move((resolution.width() // 2) - (self.frameSize().width() // 2),
                   (resolution.height() // 2) - (self.frameSize().height() // 2))
         self.populate_recent_project_box()

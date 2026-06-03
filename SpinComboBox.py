@@ -1,7 +1,7 @@
 import sys
 
-from PyQt5.QtWidgets import QComboBox, QVBoxLayout
-from PyQt5.QtCore import pyqtSignal
+from PyQt6.QtWidgets import QComboBox, QVBoxLayout
+from PyQt6.QtCore import pyqtSignal
 
 
 class SpinComboBox(QComboBox):
@@ -47,7 +47,7 @@ class SpinComboBox(QComboBox):
 
 
 if __name__ == '__main__':
-    from PyQt5.QtWidgets import QApplication, QWidget
+    from PyQt6.QtWidgets import QApplication, QWidget
 
 
     def on_spin_changed(ms2):

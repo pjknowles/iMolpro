@@ -2,7 +2,8 @@ import os
 import platform
 
 import pymolpro
-from PyQt5.QtWidgets import QMenu, QAction
+from PyQt6.QtGui import QAction
+from PyQt6.QtWidgets import QMenu
 from pysjef import recent_project
 
 

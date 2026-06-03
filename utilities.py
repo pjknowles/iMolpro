@@ -6,10 +6,9 @@ import json
 from collections.abc import MutableMapping
 
 import numpy
-from PyQt5.Qt import Qt
-from PyQt5.QtCore import QTimer, QPoint, QCoreApplication
-from PyQt5.QtGui import QFont, QFontDatabase, QTextCursor, QCursor
-from PyQt5.QtWidgets import QPlainTextEdit, QMessageBox, QLabel, QMainWindow
+from PyQt6.QtCore import QTimer, QPoint, QCoreApplication
+from PyQt6.QtGui import QFont, QFontDatabase, QTextCursor, QCursor
+from PyQt6.QtWidgets import QPlainTextEdit, QMessageBox, QLabel, QMainWindow
 
 from enum import Enum
 
@@ -177,7 +176,7 @@ class EditFile(QVimPlainTextEdit):
         else:
             self.savedText = '\n'
         self.setPlainText(self.savedText)
-        f = QFont(QFontDatabase.systemFont(QFontDatabase.FixedFont))
+        f = QFont(QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
         f.setPointSize(12)
         self.setFont(f)
         self.sync()
@@ -242,7 +241,7 @@ class ViewFile(QPlainTextEdit):
         super().__init__()
         self.setReadOnly(True)
         self.latency = latency
-        f = QFont(QFontDatabase.systemFont(QFontDatabase.FixedFont))
+        f = QFont(QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
         f.setPointSize(point_size)
         self.setFont(f)
         self.modtime = 0.0

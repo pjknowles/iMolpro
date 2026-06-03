@@ -1,7 +1,7 @@
 # Copyright (c) 2019 Akihito Takeuchi
 # Distributed under the MIT License : http://opensource.org/licenses/MIT
 
-from PyQt5 import QtWidgets, QtGui, QtCore
+from PyQt6 import QtWidgets, QtGui, QtCore
 
 Signal = QtCore.pyqtSignal
 Slot = QtCore.pyqtSlot
@@ -27,7 +27,7 @@ class DraggableTabWidget(QtWidgets.QTabWidget):
         DraggableTabWidget.tab_widget_instances_.append(self)
 
     def event(self, event):
-        if event.type() == QtCore.QEvent.DeferredDelete:
+        if event.type() == QtCore.QEvent.Type.DeferredDelete:
             DraggableTabWidget.tab_widget_instances_.remove(self)
         return super().event(event)
 
@@ -58,7 +58,7 @@ class DraggableTabBar(QtWidgets.QTabBar):
 
     def mousePressEvent(self, event):
         cls = DraggableTabBar
-        if event.button() == QtCore.Qt.LeftButton:
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
             current_index = self.tabAt(event.pos())
             parent = self.parent()
             parent.setCurrentIndex(current_index)
@@ -75,7 +75,7 @@ class DraggableTabBar(QtWidgets.QTabBar):
 
     def mouseReleaseEvent(self, event):
         cls = DraggableTabBar
-        if event.button() == QtCore.Qt.LeftButton:
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
             if cls.initializing_drag_:
                 if self.parent().indexOf(cls.drag_tab_info_.widget) <= 0:
                     cls.dragging_widget_ = cls.drag_tab_info_.widget
@@ -149,7 +149,7 @@ class DraggableTabBar(QtWidgets.QTabBar):
         cls.dragging_widget_ = None
         cls.initializing_drag_ = True
         release_event = self.createMouseEvent(
-            QtCore.QEvent.MouseButtonRelease,
+            QtCore.QEvent.Type.MouseButtonRelease,
             self.mapFromGlobal(QtGui.QCursor.pos()))
         QtWidgets.QApplication.postEvent(self, release_event)
 
@@ -162,7 +162,7 @@ class DraggableTabBar(QtWidgets.QTabBar):
 
         event = QtGui.QMouseEvent(
             event_type, pos, global_pos,
-            QtCore.Qt.LeftButton, QtCore.Qt.LeftButton, modifiers)
+            QtCore.Qt.MouseButton.LeftButton, QtCore.Qt.MouseButton.LeftButton, modifiers)
         return event
 
     def startTabMove(self):
@@ -182,7 +182,7 @@ class DraggableTabBar(QtWidgets.QTabBar):
         cls.drag_tab_info_ = TabInfo()
 
         press_event = self.createMouseEvent(
-            QtCore.QEvent.MouseButtonPress, self.tabRect(idx).center())
+            QtCore.QEvent.Type.MouseButtonPress, self.tabRect(idx).center())
         QtWidgets.QApplication.postEvent(self, press_event)
         self.destroyUnnecessaryWindow()
         self.window().raise_()

@@ -20,12 +20,13 @@ import re
 import platform
 
 import pymolpro
-from PyQt5.QtCore import QTimer, pyqtSignal, QUrl, QCoreApplication, Qt, QSize, QEvent
-from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
-from PyQt5.QtWidgets import QMainWindow, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QComboBox, QLabel, \
+from PyQt6.QtCore import QTimer,  QUrl, QCoreApplication, Qt, QSize, QEvent, pyqtSignal
+from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PyQt6.QtWebEngineCore import QWebEnginePage
+from PyQt6.QtWidgets import QMainWindow, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QComboBox, QLabel, \
     QMessageBox, QTabWidget, QFileDialog, QSplitter, QMenu, QGridLayout, QInputDialog, QCheckBox, QApplication, \
-    QToolButton, QAction
-from PyQt5.QtGui import QFont, QDesktopServices
+    QToolButton
+from PyQt6.QtGui import QFont, QDesktopServices, QAction
 from pymolpro import Project as BaseProject
 
 from pymolpro import molpro_input
@@ -170,6 +171,7 @@ class ProjectWindow(QMainWindow):
             settings['project_window_height'] = self.normal_geometry.height()
 
     def __init__(self, filename, window_manager, latency=1000, **kwargs):
+        print('ProjectWindow.__init__ entered')
         logger.debug('Initializing ProjectWindow with filename {}'.format(filename))
         super().__init__(None)
         self.window_manager = window_manager
@@ -221,11 +223,11 @@ class ProjectWindow(QMainWindow):
         self.jsmol_min_js = str(pathlib.Path(__file__).parent / "JSmol.min.js")
         if hasattr(sys, '_MEIPASS') and platform.uname().system != 'Windows':
             os.environ['QTWEBENGINEPROCESS_PATH'] = os.path.normpath(os.path.join(
-                sys._MEIPASS, 'PyQt5', 'Qt', 'libexec', 'QtWebEngineProcess'
+                sys._MEIPASS, 'PyQt6', 'Qt', 'libexec', 'QtWebEngineProcess'
             ))
         os.environ['QTWEBENGINE_CHROMIUM_FLAGS'] = '--no-sandbox'
         likely_qtwebengineprocess = os.path.normpath(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), 'PyQt5', 'Qt5', 'libexec', 'QtWebEngineProcess'))
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), 'PyQt6', 'Qt5', 'libexec', 'QtWebEngineProcess'))
         if os.path.exists(likely_qtwebengineprocess):
             os.environ['QTWEBENGINEPROCESS_PATH'] = likely_qtwebengineprocess
 
@@ -253,7 +255,7 @@ class ProjectWindow(QMainWindow):
         self.input_pane.textChanged.connect(lambda: self.thread_executor.submit(self.input_text_changed_consequence))
         self.input_tabs.setTabBarAutoHide(True)
         self.input_tabs.setDocumentMode(True)
-        self.input_tabs.setTabPosition(QTabWidget.South)
+        self.input_tabs.setTabPosition(QTabWidget.TabPosition.South)
         self.input_tabs.currentChanged.connect(self.input_tab_changed_consequence)
         left_layout.addWidget(self.input_tabs)
         self.input_tabs.setMinimumHeight(300)
@@ -287,7 +289,7 @@ class ProjectWindow(QMainWindow):
         self.input_text_changed_consequence(0)
 
         top_layout = QHBoxLayout()
-        splitter = QSplitter(Qt.Horizontal)
+        splitter = QSplitter(Qt.Orientation.Horizontal)
         top_layout.addWidget(splitter)
 
         left_widget = QWidget(self)
@@ -297,7 +299,7 @@ class ProjectWindow(QMainWindow):
         self.output_tabs = MyTabWidget(self)
         self.output_tabs.setTabBarAutoHide(True)
         self.output_tabs.setDocumentMode(True)
-        self.output_tabs.setTabPosition(QTabWidget.South)
+        self.output_tabs.setTabPosition(QTabWidget.TabPosition.South)
         self.refresh_output_tabs()
         self.timer_output_tabs = QTimer(self)
         self.timer_output_tabs.timeout.connect(self.refresh_output_tabs)
@@ -753,7 +755,7 @@ class ProjectWindow(QMainWindow):
                                                       )
                     self.vod_selector_action(label)
             except Exception as e:
-                # print('Orbitals except',str(e))
+                print('Orbitals except',str(e))
                 pass
 
 
@@ -1410,7 +1412,7 @@ class BasisAndHamiltonianChooser(QWidget):
             'Hamiltonian': self.combo_hamiltonian,
             'Quality': self.guided_combo_basis_quality,
             'Basis': self.basis_selector,
-        }, title='Hamiltonian and basis', alignment=Qt.AlignCenter | Qt.AlignTop))
+        }, title='Hamiltonian and basis', alignment=Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignTop))
 
     def refresh(self):
         while True:
@@ -1628,7 +1630,7 @@ class GuidedPane(QWidget):
             if self.input_specification.method is None:
                 self.input_specification.method = 'rhf'
             method_index = self.guided_combo_method.findText(
-                re.sub('^df-', '', self.input_specification.method, flags=re.IGNORECASE).upper(), Qt.MatchFixedString)
+                re.sub('^df-', '', self.input_specification.method, flags=re.IGNORECASE).upper(), Qt.MatchFlag.MatchFixedString)
             self.guided_combo_method.setCurrentIndex(method_index)
             if re.match('[ru]ks', self.input_specification.method, flags=re.IGNORECASE):
                 self.method_row.ensure_not(['Core Correlation'])
@@ -1636,7 +1638,7 @@ class GuidedPane(QWidget):
                 if not self.input_specification.density_functional:
                     self.input_specification.density_functional = self.guided_combo_functional.itemText(0)
                 self.guided_combo_functional.setCurrentIndex(self.guided_combo_functional.findText(
-                    self.input_specification.density_functional, Qt.MatchFixedString))
+                    self.input_specification.density_functional, Qt.MatchFlag.MatchFixedString))
             elif re.match('[ru]hf', self.input_specification.method):
                 self.method_row.ensure_not(['Functional'])
                 self.method_row.ensure_not(['Core Correlation'])
@@ -1819,7 +1821,7 @@ class GuidedPane(QWidget):
 
 
 class RowOfTitledWidgets(QWidget):
-    def __init__(self, widgets, title=None, parent=None, alignment=Qt.AlignCenter):
+    def __init__(self, widgets, title=None, parent=None, alignment=Qt.AlignmentFlag.AlignCenter):
         super().__init__(parent)
         self.alignment = alignment
         self.setContentsMargins(0, 0, 0, 0)
@@ -1882,7 +1884,7 @@ class OrbitalInput(CheckableComboBox):
             for o in self.parent.input_specification['orbitals']:
                 for i in range(self.model().rowCount()):
                     if self.model().item(i).text() == molpro_input.local_orbital_types()[o]['text']:
-                        self.model().item(i).setCheckState(Qt.Checked)
+                        self.model().item(i).setCheckState(Qt.CheckState.Checked)
         self.updateText()
 
     def action(self, text):
@@ -1935,9 +1937,9 @@ class ChargeSelector(QWidget):
         self.layout = QHBoxLayout(self)
         self.label = QLabel('0')
         self.plus_button = QToolButton()
-        self.plus_button.setArrowType(Qt.UpArrow)
+        self.plus_button.setArrowType(Qt.ArrowType.UpArrow)
         self.minus_button = QToolButton()
-        self.minus_button.setArrowType(Qt.DownArrow)
+        self.minus_button.setArrowType(Qt.ArrowType.DownArrow)
         fontsize = self.fontInfo().pointSize()
         self.minus_button.setIconSize(QSize(fontsize // 2, fontsize * 2 // 3))
         self.plus_button.setIconSize(QSize(fontsize // 2, fontsize * 2 // 3))
@@ -1974,3 +1976,6 @@ class MyTabWidget(DraggableTabWidget):
     def clear(self):
         self.tab_names.clear()
         super().clear()
+
+    def __len__(self):
+        return self.count()
