@@ -1,5 +1,5 @@
-pyqt >=5.15
-pyqtwebengine >=5.15
+pyqt >=5.15,<6
+pyqtwebengine >=5.15,<6
 pyinstaller >=6
 pymolpro >=1.19.0
 pysjef >=1.44.2
